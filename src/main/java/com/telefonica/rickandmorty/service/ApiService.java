@@ -16,7 +16,7 @@ public class ApiService {
     private final WebClient webClient;
 
     public <O> Mono<O> executeApi(String endpoint, Class<O> outputClass) {
-        log.info("[executeApi] Executing {}. Expecting result: {}", endpoint, outputClass);
+        log.debug("[executeApi] Executing {}. Expecting result: {}", endpoint, outputClass);
         return webClient
                 .method(HttpMethod.GET)
                 .uri(endpoint)
