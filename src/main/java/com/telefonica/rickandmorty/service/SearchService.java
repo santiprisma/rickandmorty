@@ -34,6 +34,7 @@ public class SearchService {
     private String characterEndpoint;
 
     public SearchResponse searchCharacter(String name) {
+        log.info("[searchCharacter] Searching character {}", name);
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add(PARAM_NAME, name);
 
@@ -45,7 +46,10 @@ public class SearchService {
                     return apiService.executeApi(response.getInfo().getNext(), CharacterSearch.class);
                 }).flatMap(response -> Flux.fromIterable(response.getResults())).collectList().block();
 
+        log.info("[searchCharacter] Found {} results", result.size());
         result = removeNonExpected(name, result);
+
+        log.info("[searchCharacter] Getting episodes list for {}", name);
         List<Episode> episodes = findEpisodes(result);
 
         return SearchResponse.builder()
@@ -56,6 +60,7 @@ public class SearchService {
     }
 
     private List<Character> removeNonExpected(String expected, List<Character> characters) {
+        log.info("[removeNonExpected] Removing unexpected results");
         List<Character> characterList = characters.stream()
                 .filter(character -> expected.equalsIgnoreCase(character.getName()))
                 .collect(Collectors.toList());
@@ -64,6 +69,7 @@ public class SearchService {
             throw new NonUniqueException(HttpStatus.BAD_REQUEST, "There are more than 1 character with this name.");
         }
 
+        log.info("[removeNonExpected] Removed {} entries", characters.size() - characterList.size());
         return characterList;
     }
 
@@ -74,6 +80,8 @@ public class SearchService {
                 .map(endpoint -> apiService.executeApi(endpoint, Episode.class).block())
                 .sorted(Comparator.comparing(Episode::getId))
                 .collect(Collectors.toList());
+
+        log.info("[findEpisodes] Found {} episodes", episodes.size());
 
         return episodes;
     }
