@@ -21,7 +21,7 @@ public class ApiService {
                 .method(HttpMethod.GET)
                 .uri(endpoint)
                 .retrieve()
-                .onStatus(HttpStatus::isError, clientResponse -> Mono.error(new ApiException(clientResponse.statusCode(), clientResponse.statusCode().getReasonPhrase())))
+                .onStatus(HttpStatus::isError, clientResponse -> Mono.error(new ApiException(endpoint, clientResponse.statusCode(), clientResponse.statusCode().getReasonPhrase())))
                 .bodyToMono(outputClass);
     }
 }

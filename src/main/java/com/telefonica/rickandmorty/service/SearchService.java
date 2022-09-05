@@ -1,5 +1,6 @@
 package com.telefonica.rickandmorty.service;
 
+import com.telefonica.rickandmorty.exception.NonUniqueException;
 import com.telefonica.rickandmorty.model.Character;
 import com.telefonica.rickandmorty.model.CharacterSearch;
 import com.telefonica.rickandmorty.model.Episode;
@@ -7,6 +8,7 @@ import com.telefonica.rickandmorty.model.dto.SearchResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -14,6 +16,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,34 +46,36 @@ public class SearchService {
                 }).flatMap(response -> Flux.fromIterable(response.getResults())).collectList().block();
 
         result = removeNonExpected(name, result);
-        List<String> episodes = getEpisodes(result);
-        Episode firstEpisode = findFirstEpisode(episodes);
+        List<Episode> episodes = findEpisodes(result);
 
         return SearchResponse.builder()
                 .name(name)
-                .episodes(episodes)
-                .firstAppearance(firstEpisode.getAirDate())
+                .episodes(episodes.stream().map(Episode::getName).collect(Collectors.toList()))
+                .firstAppearance(episodes.get(0).getAirDate())
                 .build();
     }
 
     private List<Character> removeNonExpected(String expected, List<Character> characters) {
-        return characters.stream()
+        List<Character> characterList = characters.stream()
                 .filter(character -> expected.equalsIgnoreCase(character.getName()))
                 .collect(Collectors.toList());
 
+        if (characterList.isEmpty()) {
+            throw new NonUniqueException(HttpStatus.BAD_REQUEST, "There are more than 1 character with this name.");
+        }
+
+        return characterList;
     }
 
-    private List<String> getEpisodes(List<Character> characters) {
-        return characters.stream()
+    private List<Episode> findEpisodes(List<Character> characters) {
+        List<Episode> episodes = characters.stream()
                 .flatMap(character -> character.getEpisode().stream())
+                .distinct()
+                .map(endpoint -> apiService.executeApi(endpoint, Episode.class).block())
+                .sorted(Comparator.comparing(Episode::getId))
                 .collect(Collectors.toList());
-    }
 
-    private Episode findFirstEpisode(List<String> episodes) {
-        String minEpisode = episodes.stream()
-                .collect(Collectors.minBy(String.CASE_INSENSITIVE_ORDER)).orElse(null);
-
-        return apiService.executeApi(minEpisode, Episode.class).block();
+        return episodes;
     }
 
     private String getFullEndpoint(String endpoint, MultiValueMap<String, String> params) {

@@ -8,8 +8,7 @@ import org.springframework.http.HttpStatus;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-public class ApiException extends RuntimeException {
-    private String endpoint;
+public class NonUniqueException extends RuntimeException {
     private HttpStatus code;
     private String error;
 }
